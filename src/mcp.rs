@@ -483,7 +483,9 @@ impl McpServer {
                 let (body, truncated) = if max_chars > 0 && raw_chars_count > max_chars {
                     let slice: String = fetched.html.chars().take(max_chars).collect();
                     (
-                        format!("{slice}\n\n<!-- [Raw HTML truncated at {max_chars} characters] -->"),
+                        format!(
+                            "{slice}\n\n<!-- [Raw HTML truncated at {max_chars} characters] -->"
+                        ),
                         true,
                     )
                 } else {

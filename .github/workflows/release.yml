@@ -19,16 +19,37 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux
-          - { os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  archive: tar.gz }
-          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, archive: tar.gz }
-          # macOS
-          - { os: macos-latest,     target: aarch64-apple-darwin,      archive: tar.gz }
-          # Windows
-          - { os: windows-latest,   target: x86_64-pc-windows-msvc,    archive: zip }
-          - { os: windows-11-arm,   target: aarch64-pc-windows-msvc,   archive: zip }
+          # Linux x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+          # Linux ARM64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+            cross: true
+          # macOS Apple Silicon
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar.gz
+          # Windows x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+          # Windows ARM64
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            archive: zip
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Linux ARM64 cross-linker
+        if: matrix.cross && matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -47,7 +68,7 @@ jobs:
         run: |
           name="mcp-web-${{ matrix.target }}"
           mkdir "$name"
-          cp "target/${{ matrix.target }}/release/mcp-web" README.md "$name/"
+          cp "target/${{ matrix.target }}/release/mcp-web" README.md LICENSE "$name/"
           tar -czf "$name.tar.gz" "$name"
           shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
           echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
@@ -58,7 +79,9 @@ jobs:
         run: |
           $name = "mcp-web-${{ matrix.target }}"
           New-Item -ItemType Directory $name | Out-Null
-          Copy-Item "target/${{ matrix.target }}/release/mcp-web.exe", "README.md" $name
+          Copy-Item "target/${{ matrix.target }}/release/mcp-web.exe" -Destination "$name/"
+          Copy-Item "README.md" -Destination "$name/"
+          Copy-Item "LICENSE" -Destination "$name/"
           Compress-Archive -Path $name -DestinationPath "$name.zip"
           $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
           "$hash  $name.zip" | Out-File -Encoding ascii "$name.zip.sha256"
